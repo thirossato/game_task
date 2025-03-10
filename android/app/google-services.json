@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "219559591313",
+    "project_id": "gametask-a8eb9",
+    "storage_bucket": "gametask-a8eb9.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:219559591313:android:5d2c9b0a593f5aaffd2e30",
+        "android_client_info": {
+          "package_name": "com.example.game_task"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBG52TNwnzqncR5lbGvXdLQkBYEE2ExwAk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
