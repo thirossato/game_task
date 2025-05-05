@@ -1,11 +1,37 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:uuid/uuid.dart';
 
-class TarefasPage extends StatelessWidget {
+class TarefasPage extends StatefulWidget {
+  @override
+  _TarefasPage createState() => _TarefasPage();
+}
+
+class _TarefasPage extends State<TarefasPage> {
   final TextEditingController _tituloController = TextEditingController();
 
-  TarefasPage({super.key});
+  // _TarefasPage({super.key});
+
+  String? userId;
+
+  @override
+  void initState() {
+    super.initState();
+    getOrCreateUserId()
+        .then((id) async {
+          setState(() {
+            userId = id;
+          });
+          if (id.isNotEmpty) {
+            await checarTarefasVencidasESubtrairPontos(id);
+          }
+        })
+        .catchError((e) {
+          print("Erro ao obter userId: $e");
+        });
+  }
 
   void _adicionarTarefa(BuildContext context) {
     String prioridadeSelecionada = 'Média';
@@ -77,15 +103,25 @@ class TarefasPage extends StatelessWidget {
                   child: Text("Cancelar"),
                 ),
                 TextButton(
-                  onPressed: () {
+                  onPressed: () async {
+                    final tarefaId = Uuid().v4();
                     if (_tituloController.text.isNotEmpty &&
                         dataSelecionada != null) {
-                      FirebaseFirestore.instance.collection('tarefas').add({
+                      final vencida = dataSelecionada!.isBefore(DateTime.now());
+                      FirebaseFirestore.instance.collection('tarefas').doc(tarefaId).set({
+                        'ID': tarefaId,
                         'Titulo': _tituloController.text,
                         'Status': 'pendente',
                         'Prioridade': prioridadeSelecionada,
                         'Data_vencimento': Timestamp.fromDate(dataSelecionada!),
+                        'pontos_subtraidos': vencida
                       });
+                      if(vencida){
+                       // Subtraia os pontos do usuário
+                        await FirebaseFirestore.instance.collection('users').doc(userId).update({
+                          'points': FieldValue.increment(-5),
+                        });
+                      }
                       _tituloController.clear();
                       Navigator.pop(context);
                     }
@@ -100,8 +136,30 @@ class TarefasPage extends StatelessWidget {
     );
   }
 
-  void _deletarTarefa(String id) {
+  Future<void> _inicializarUsuario() async {
+    final prefs = await SharedPreferences.getInstance();
+    final storedId = prefs.getString('user_id');
+
+    if (storedId != null) {
+      setState(() => userId = storedId);
+    } else {
+      final newUserId = FirebaseFirestore.instance.collection('users').doc().id;
+      await FirebaseFirestore.instance.collection('users').doc(newUserId).set({
+        'points': 0,
+      });
+      await prefs.setString('user_id', newUserId);
+      setState(() => userId = newUserId);
+    }
+  }
+
+  void _deletarTarefa(String id) async {
     FirebaseFirestore.instance.collection('tarefas').doc(id).delete();
+    final userRef = FirebaseFirestore.instance.collection('users').doc(userId);
+    final userDoc = await userRef.get();
+    if (userDoc.exists) {
+      final currentPoints = userDoc.data()?['points'] ?? 0;
+      await userRef.update({'points': currentPoints - 10});
+    }
   }
 
   void _editarTarefa(
@@ -206,6 +264,21 @@ class TarefasPage extends StatelessWidget {
     );
   }
 
+  Future<String> getOrCreateUserId() async {
+    final prefs = await SharedPreferences.getInstance();
+    String? userId = prefs.getString('userId');
+    if (userId == null) {
+      userId = 'user_1';
+      prefs.setString('userId', userId);
+
+      // Cria o documento inicial do user
+      await FirebaseFirestore.instance.collection('users').doc(userId).set({
+        'points': 0,
+      });
+    }
+    return userId;
+  }
+
   Widget _buildPrioridadeChip(String prioridade) {
     Color cor;
     IconData icone;
@@ -248,10 +321,61 @@ class TarefasPage extends StatelessWidget {
     }
   }
 
+  Future<void> checarTarefasVencidasESubtrairPontos(String userId) async {
+  final hoje = DateTime.now();
+  final tarefasSnapshot = await FirebaseFirestore.instance
+      .collection('tarefas')
+      .where('Status', isNotEqualTo: 'concluída')
+      .get();
+  try {
+    for (var doc in tarefasSnapshot.docs) {
+      final dueDate = (doc['Data_vencimento'] as Timestamp).toDate();
+
+      // Verifique se o campo 'pontos_subtraidos' existe antes de acessá-lo
+      final pontosSubtraidos = doc.data().containsKey('pontos_subtraidos')
+          ? doc['pontos_subtraidos']
+          : false; // Se não existir, assume que ainda não foi subtraído
+
+      if (dueDate.isBefore(hoje) && pontosSubtraidos != true) {
+        // Atualize o campo 'pontos_subtraidos' para true
+        await FirebaseFirestore.instance
+            .collection('tarefas')
+            .doc(doc.id)
+            .update({'pontos_subtraidos': true});
+
+        // Subtraia os pontos do usuário
+        await FirebaseFirestore.instance.collection('users').doc(userId).update({
+          'points': FieldValue.increment(-5),
+        });
+      }
+    }
+  } catch (err) {
+    print("Erro ao subtrair pontos de tarefas vencidas. $err");
+  }
+}
+
   @override
   Widget build(BuildContext context) {
+    if (userId == null) return CircularProgressIndicator();
+
     return Scaffold(
-      appBar: AppBar(title: Text("Lista de Tarefas")),
+      appBar: AppBar(
+        title:
+            userId == null
+                ? Text("Carregando...")
+                : StreamBuilder<DocumentSnapshot>(
+                  stream:
+                      FirebaseFirestore.instance
+                          .collection('users')
+                          .doc(userId)
+                          .snapshots(),
+                  builder: (context, snapshot) {
+                    if (!snapshot.hasData) return Text("Lista de Tarefas");
+                    final pontos = snapshot.data!.get('points') ?? 0;
+                    return Text("Tarefas - Pontos: $pontos");
+                  },
+                ),
+      ),
       body: StreamBuilder(
         stream: FirebaseFirestore.instance.collection('tarefas').snapshots(),
         builder: (context, AsyncSnapshot<QuerySnapshot> snapshot) {
@@ -273,7 +397,7 @@ class TarefasPage extends StatelessWidget {
             today.day + 7 - today.weekday % 7,
           );
           final categories = {
-            "Concluídas": [],
+            // "Concluídas": [],
             "Vencidas": <QueryDocumentSnapshot>[],
             "Vencendo hoje": [],
             "Vencendo amanhã": [],
@@ -286,12 +410,12 @@ class TarefasPage extends StatelessWidget {
             final Timestamp timestamp = doc['Data_vencimento'];
             final DateTime dueDate = timestamp.toDate();
             final date = DateTime(dueDate.year, dueDate.month, dueDate.day);
-            final bool concluida = doc['Status'] == 'concluída';
+            // final bool concluida = doc['Status'] == 'concluída';
 
-            if (concluida) {
-              categories["Concluídas"]!.add(doc);
-              continue;
-            }
+            // if (concluida) {
+            //   categories["Concluídas"]!.add(doc);
+            //   continue;
+            // }
 
             if (date.isBefore(today)) {
               categories["Vencidas"]!.add(doc);
@@ -382,67 +506,90 @@ class TarefasPage extends StatelessWidget {
                             trailing: Wrap(
                               spacing: 4,
                               children: [
-                                if(!concluida) ...[IconButton(
-                                  icon: Icon(
-                                    Icons.play_arrow,
-                                    color: Colors.green,
+                                if (!concluida) ...[
+                                  IconButton(
+                                    icon: Icon(
+                                      Icons.play_arrow,
+                                      color: Colors.green,
+                                    ),
+                                    tooltip: 'Em progresso',
+                                    onPressed: () {
+                                      FirebaseFirestore.instance
+                                          .collection('tarefas')
+                                          .doc(doc.id)
+                                          .update({'Status': 'em progresso'});
+                                    },
                                   ),
-                                  tooltip: 'Em progresso',
-                                  onPressed: () {
-                                    FirebaseFirestore.instance
-                                        .collection('tarefas')
-                                        .doc(doc.id)
-                                        .update({'Status': 'em progresso'});
-                                  },
-                                ),
-                                IconButton(
-                                  icon: Icon(Icons.pause, color: Colors.orange),
-                                  tooltip: 'Paralisada',
-                                  onPressed: () {
-                                    FirebaseFirestore.instance
-                                        .collection('tarefas')
-                                        .doc(doc.id)
-                                        .update({'Status': 'paralisada'});
-                                  },
-                                ),
-                                IconButton(
-                                  icon: Icon(
-                                    Icons.check,
-                                    color: Colors.blueAccent,
+                                  IconButton(
+                                    icon: Icon(
+                                      Icons.pause,
+                                      color: Colors.orange,
+                                    ),
+                                    tooltip: 'Paralisada',
+                                    onPressed: () {
+                                      FirebaseFirestore.instance
+                                          .collection('tarefas')
+                                          .doc(doc.id)
+                                          .update({'Status': 'paralisada'});
+                                    },
                                   ),
-                                  tooltip: 'Concluir',
-                                  onPressed: () {
-                                    showDialog(
-                                      context: context,
-                                      builder:
-                                          (ctx) => AlertDialog(
-                                            title: Text("Concluir Tarefa"),
-                                            content: Text(
-                                              "Tem certeza que deseja marcar esta tarefa como concluída?",
-                                            ),
-                                            actions: [
-                                              TextButton(
-                                                onPressed:
-                                                    () => Navigator.pop(ctx),
-                                                child: Text("Cancelar"),
+                                  IconButton(
+                                    icon: Icon(
+                                      Icons.check,
+                                      color: Colors.blueAccent,
+                                    ),
+                                    tooltip: 'Concluir',
+                                    onPressed: () {
+                                      showDialog(
+                                        context: context,
+                                        builder:
+                                            (ctx) => AlertDialog(
+                                              title: Text("Concluir Tarefa"),
+                                              content: Text(
+                                                "Tem certeza que deseja marcar esta tarefa como concluída?",
                                               ),
-                                              TextButton(
-                                                onPressed: () {
-                                                  FirebaseFirestore.instance
-                                                      .collection('tarefas')
-                                                      .doc(doc.id)
-                                                      .update({
-                                                        'Status': 'concluída',
+                                              actions: [
+                                                TextButton(
+                                                  onPressed:
+                                                      () => Navigator.pop(ctx),
+                                                  child: Text("Cancelar"),
+                                                ),
+                                                TextButton(
+                                                  onPressed: () async {
+                                                    FirebaseFirestore.instance
+                                                        .collection('tarefas')
+                                                        .doc(doc.id)
+                                                        .update({
+                                                          'Status': 'concluída',
+                                                        });
+
+                                                    final userRef =
+                                                        FirebaseFirestore
+                                                            .instance
+                                                            .collection('users')
+                                                            .doc(userId);
+                                                    final userDoc =
+                                                        await userRef.get();
+                                                    if (userDoc.exists && doc['pontos_subtraidos'] != true) {
+                                                      final currentPoints =
+                                                          userDoc
+                                                              .data()?['points'] ??
+                                                          0;
+                                                      await userRef.update({
+                                                        'points':
+                                                            currentPoints + 10,
                                                       });
-                                                  Navigator.pop(ctx);
-                                                },
-                                                child: Text("Sim"),
-                                              ),
-                                            ],
-                                          ),
-                                    );
-                                  },
-                                ),
+                                                    }
+
+                                                    Navigator.pop(ctx);
+                                                  },
+                                                  child: Text("Sim"),
+                                                ),
+                                              ],
+                                            ),
+                                      );
+                                    },
+                                  ),
                                 ],
                                 IconButton(
                                   icon: Icon(Icons.edit, color: Colors.blue),
