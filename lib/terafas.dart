@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:game_task/selecionar_tema.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
+import 'user_service.dart';
 
 class TarefasPage extends StatefulWidget {
   @override
@@ -12,8 +13,6 @@ class TarefasPage extends StatefulWidget {
 
 class _TarefasPage extends State<TarefasPage> {
   final TextEditingController _tituloController = TextEditingController();
-
-  // _TarefasPage({super.key});
 
   String? userId;
 
@@ -269,21 +268,6 @@ class _TarefasPage extends State<TarefasPage> {
         );
       },
     );
-  }
-
-  Future<String> getOrCreateUserId() async {
-    final prefs = await SharedPreferences.getInstance();
-    String? userId = prefs.getString('userId');
-    if (userId == null) {
-      userId = 'user_1';
-      prefs.setString('userId', userId);
-
-      // Cria o documento inicial do user
-      await FirebaseFirestore.instance.collection('users').doc(userId).set({
-        'points': 0,
-      });
-    }
-    return userId;
   }
 
   Widget _buildPrioridadeChip(String prioridade) {

@@ -82,7 +82,7 @@ class _TemaSelectionScreenState extends State<TemaSelectionScreen> {
                   trailing: desbloqueado
                       ? null
                       : Icon(Icons.lock, color: Colors.amber),
-                  onTap: () {
+                  onTap: () async {
                     if (!desbloqueado) {
                       showDialog(
                         context: context,
@@ -133,7 +133,14 @@ class _TemaSelectionScreenState extends State<TemaSelectionScreen> {
                         },
                       );
                     } else {
-                      // futura lógica para aplicar o tema desbloqueado
+                      await FirebaseFirestore.instance
+                          .collection('users')
+                          .doc(widget.userId)
+                          .update({'temaSelecionado': tema.temaId});
+
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Tema "${tema.nome}" ativado!')),
+                      );
                     }
                   },
                 ),
