@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:game_task/theme_controller.dart';
+import 'package:game_task/theme_factory.dart';
 
 class Tema {
   final String id;
@@ -8,7 +10,13 @@ class Tema {
   final Color cor;
   final num pontos;
 
-  Tema({required this.id, required this.temaId, required this.nome, required this.cor, required this.pontos});
+  Tema({
+    required this.id,
+    required this.temaId,
+    required this.nome,
+    required this.cor,
+    required this.pontos,
+  });
 
   factory Tema.fromMap(Map<String, dynamic> data, String docId) {
     return Tema(
@@ -16,7 +24,7 @@ class Tema {
       temaId: data['temaId'] ?? '',
       nome: data['nome'] ?? '',
       cor: Color(int.parse(data['corHex'], radix: 16)).withOpacity(1.0),
-      pontos: data['pontos'] ?? 100
+      pontos: data['pontos'] ?? 100,
     );
   }
 }
@@ -46,14 +54,20 @@ class _TemaSelectionScreenState extends State<TemaSelectionScreen> {
   }
 
   Future<List<String>> _getTemasDesbloqueados() async {
-    final doc = await FirebaseFirestore.instance.collection('users').doc(widget.userId).get();
+    final doc =
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(widget.userId)
+            .get();
     final list = doc.data()?['temasDesbloqueados'] ?? [];
     return List<String>.from(list);
   }
 
   Future<List<Tema>> _getTemasDisponiveis() async {
     final snapshot = await FirebaseFirestore.instance.collection('temas').get();
-    return snapshot.docs.map((doc) => Tema.fromMap(doc.data(), doc.id)).toList();
+    return snapshot.docs
+        .map((doc) => Tema.fromMap(doc.data(), doc.id))
+        .toList();
   }
 
   @override
@@ -63,7 +77,8 @@ class _TemaSelectionScreenState extends State<TemaSelectionScreen> {
       body: FutureBuilder(
         future: Future.wait([_temasFuture, _desbloqueadosFuture]),
         builder: (context, AsyncSnapshot<List<dynamic>> snapshot) {
-          if (!snapshot.hasData) return Center(child: CircularProgressIndicator());
+          if (!snapshot.hasData)
+            return Center(child: CircularProgressIndicator());
 
           final List<Tema> temas = snapshot.data![0];
           final List<String> desbloqueados = snapshot.data![1];
@@ -79,9 +94,10 @@ class _TemaSelectionScreenState extends State<TemaSelectionScreen> {
                 child: ListTile(
                   leading: CircleAvatar(backgroundColor: tema.cor),
                   title: Text(tema.nome),
-                  trailing: desbloqueado
-                      ? null
-                      : Icon(Icons.lock, color: Colors.amber),
+                  trailing:
+                      desbloqueado
+                          ? null
+                          : Icon(Icons.lock, color: Colors.amber),
                   onTap: () async {
                     if (!desbloqueado) {
                       showDialog(
@@ -101,28 +117,45 @@ class _TemaSelectionScreenState extends State<TemaSelectionScreen> {
                                 onPressed: () async {
                                   Navigator.of(context).pop();
 
-                                  final userRef = FirebaseFirestore.instance.collection('users').doc(widget.userId);
+                                  final userRef = FirebaseFirestore.instance
+                                      .collection('users')
+                                      .doc(widget.userId);
                                   final userDoc = await userRef.get();
                                   final pontos = userDoc.data()?['points'] ?? 0;
 
                                   if (pontos >= tema.pontos) {
                                     await userRef.update({
-                                      'points': FieldValue.increment(-tema.pontos),
-                                      'temasDesbloqueados': FieldValue.arrayUnion([tema.temaId]),
+                                      'points': FieldValue.increment(
+                                        -tema.pontos,
+                                      ),
+                                      'temasDesbloqueados':
+                                          FieldValue.arrayUnion([tema.temaId]),
                                     });
 
                                     setState(() {
                                       _carregarDados();
                                     });
 
-                                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(content: Text('Tema "${tema.nome}" desbloqueado!')),
+                                    WidgetsBinding.instance.addPostFrameCallback((
+                                      _,
+                                    ) {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            'Tema "${tema.nome}" desbloqueado!',
+                                          ),
+                                        ),
                                       );
                                     });
                                   } else {
                                     ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(content: Text('Você não tem pontos suficientes.')),
+                                      SnackBar(
+                                        content: Text(
+                                          'Você não tem pontos suficientes.',
+                                        ),
+                                      ),
                                     );
                                   }
                                 },
@@ -137,6 +170,7 @@ class _TemaSelectionScreenState extends State<TemaSelectionScreen> {
                           .collection('users')
                           .doc(widget.userId)
                           .update({'temaSelecionado': tema.temaId});
+                      ThemeController.updateTheme(getThemeDataFromId(tema.temaId));
 
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(content: Text('Tema "${tema.nome}" ativado!')),

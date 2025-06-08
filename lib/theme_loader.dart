@@ -1,73 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'theme_factory.dart';
 
 Future<ThemeData> carregarTemaDoUsuario(String userId) async {
-  final userDoc = await FirebaseFirestore.instance.collection('users').doc(userId).get();
+  final userDoc =
+  await FirebaseFirestore.instance.collection('users').doc(userId).get();
   final temaSelecionado = userDoc.data()?['temaSelecionado'];
 
-  switch (temaSelecionado) {
-    case 'forest_green':
-      return ThemeData( primarySwatch: Colors.green,
-        scaffoldBackgroundColor: Colors.lightGreen.shade50,
-        appBarTheme: AppBarTheme(
-          backgroundColor: Colors.lightGreen,
-          foregroundColor: Colors.black,
-        ),
-        floatingActionButtonTheme: FloatingActionButtonThemeData(
-          backgroundColor: Colors.green,
-          foregroundColor: Colors.white,
-        ),
-      );
-    case 'purple_rain':
-      return ThemeData( primarySwatch: Colors.purple,
-        scaffoldBackgroundColor: Colors.deepPurple.shade50,
-        appBarTheme: AppBarTheme(
-          backgroundColor: Colors.deepPurple,
-          foregroundColor: Colors.white,
-        ),
-        floatingActionButtonTheme: FloatingActionButtonThemeData(
-          backgroundColor: Colors.purple,
-          foregroundColor: Colors.white,
-        ),
-      );
-    case 'sunset_orange':
-      return ThemeData( primarySwatch: Colors.deepOrange,
-        scaffoldBackgroundColor: Colors.orange.shade50,
-        appBarTheme: AppBarTheme(
-          backgroundColor: Colors.deepOrange,
-          foregroundColor: Colors.white,
-        ),
-        floatingActionButtonTheme: FloatingActionButtonThemeData(
-          backgroundColor: Colors.deepOrange,
-          foregroundColor: Colors.white,
-        ),
-      );
-    case 'sky':
-      return ThemeData( primarySwatch: Colors.blue,
-        scaffoldBackgroundColor: Colors.orange.shade50,
-        appBarTheme: AppBarTheme(
-          backgroundColor: Colors.blue,
-          foregroundColor: Colors.white,
-        ),
-        floatingActionButtonTheme: FloatingActionButtonThemeData(
-          backgroundColor: Colors.blue,
-          foregroundColor: Colors.white,
-        ),
-      );
-    case 'grey_dark':
-      return ThemeData( primarySwatch: Colors.grey,
-        scaffoldBackgroundColor: Colors.blueGrey.shade50,
-        appBarTheme: AppBarTheme(
-          backgroundColor: Colors.blueGrey,
-          foregroundColor: Colors.white,
-        ),
-        floatingActionButtonTheme: FloatingActionButtonThemeData(
-          backgroundColor: Colors.blueGrey,
-          foregroundColor: Colors.white,
-        ),
-      );
-    default:
-      return ThemeData(primarySwatch: Colors.blue);
-  }
-}
+  ThemeData tema;
 
+  return getThemeDataFromId(temaSelecionado);
+}

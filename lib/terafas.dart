@@ -353,8 +353,12 @@ class _TarefasPage extends State<TarefasPage> {
       case 'Logout':
         break;
       case 'Temas':
-        Navigator.push(context,
-            MaterialPageRoute(builder: (context) => TemaSelectionScreen(userId: userId!)));
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => TemaSelectionScreen(userId: userId!),
+          ),
+        );
         break;
     }
   }
