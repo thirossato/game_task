@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
+import 'package:game_task/selecionar_tema.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
@@ -108,19 +109,25 @@ class _TarefasPage extends State<TarefasPage> {
                     if (_tituloController.text.isNotEmpty &&
                         dataSelecionada != null) {
                       final vencida = dataSelecionada!.isBefore(DateTime.now());
-                      FirebaseFirestore.instance.collection('tarefas').doc(tarefaId).set({
-                        'ID': tarefaId,
-                        'Titulo': _tituloController.text,
-                        'Status': 'pendente',
-                        'Prioridade': prioridadeSelecionada,
-                        'Data_vencimento': Timestamp.fromDate(dataSelecionada!),
-                        'pontos_subtraidos': vencida
-                      });
-                      if(vencida){
-                       // Subtraia os pontos do usuário
-                        await FirebaseFirestore.instance.collection('users').doc(userId).update({
-                          'points': FieldValue.increment(-5),
-                        });
+                      FirebaseFirestore.instance
+                          .collection('tarefas')
+                          .doc(tarefaId)
+                          .set({
+                            'ID': tarefaId,
+                            'Titulo': _tituloController.text,
+                            'Status': 'pendente',
+                            'Prioridade': prioridadeSelecionada,
+                            'Data_vencimento': Timestamp.fromDate(
+                              dataSelecionada!,
+                            ),
+                            'pontos_subtraidos': vencida,
+                          });
+                      if (vencida) {
+                        // Subtraia os pontos do usuário
+                        await FirebaseFirestore.instance
+                            .collection('users')
+                            .doc(userId)
+                            .update({'points': FieldValue.increment(-5)});
                       }
                       _tituloController.clear();
                       Navigator.pop(context);
@@ -322,37 +329,51 @@ class _TarefasPage extends State<TarefasPage> {
   }
 
   Future<void> checarTarefasVencidasESubtrairPontos(String userId) async {
-  final hoje = DateTime.now();
-  final tarefasSnapshot = await FirebaseFirestore.instance
-      .collection('tarefas')
-      .where('Status', isNotEqualTo: 'concluída')
-      .get();
-  try {
-    for (var doc in tarefasSnapshot.docs) {
-      final dueDate = (doc['Data_vencimento'] as Timestamp).toDate();
-
-      // Verifique se o campo 'pontos_subtraidos' existe antes de acessá-lo
-      final pontosSubtraidos = doc.data().containsKey('pontos_subtraidos')
-          ? doc['pontos_subtraidos']
-          : false; // Se não existir, assume que ainda não foi subtraído
-
-      if (dueDate.isBefore(hoje) && pontosSubtraidos != true) {
-        // Atualize o campo 'pontos_subtraidos' para true
+    final hoje = DateTime.now();
+    final tarefasSnapshot =
         await FirebaseFirestore.instance
             .collection('tarefas')
-            .doc(doc.id)
-            .update({'pontos_subtraidos': true});
+            .where('Status', isNotEqualTo: 'concluída')
+            .get();
+    try {
+      for (var doc in tarefasSnapshot.docs) {
+        final dueDate = (doc['Data_vencimento'] as Timestamp).toDate();
 
-        // Subtraia os pontos do usuário
-        await FirebaseFirestore.instance.collection('users').doc(userId).update({
-          'points': FieldValue.increment(-5),
-        });
+        // Verifique se o campo 'pontos_subtraidos' existe antes de acessá-lo
+        final pontosSubtraidos =
+            doc.data().containsKey('pontos_subtraidos')
+                ? doc['pontos_subtraidos']
+                : false; // Se não existir, assume que ainda não foi subtraído
+
+        if (dueDate.isBefore(hoje) && pontosSubtraidos != true) {
+          // Atualize o campo 'pontos_subtraidos' para true
+          await FirebaseFirestore.instance
+              .collection('tarefas')
+              .doc(doc.id)
+              .update({'pontos_subtraidos': true});
+
+          // Subtraia os pontos do usuário
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(userId)
+              .update({'points': FieldValue.increment(-5)});
+        }
       }
+    } catch (err) {
+      print("Erro ao subtrair pontos de tarefas vencidas. $err");
     }
-  } catch (err) {
-    print("Erro ao subtrair pontos de tarefas vencidas. $err");
   }
-}
+
+  void handleClick(String value) {
+    switch (value) {
+      case 'Logout':
+        break;
+      case 'Temas':
+        Navigator.push(context,
+            MaterialPageRoute(builder: (context) => TemaSelectionScreen(userId: userId!)));
+        break;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -375,6 +396,19 @@ class _TarefasPage extends State<TarefasPage> {
                     return Text("Tarefas - Pontos: $pontos");
                   },
                 ),
+        actions: <Widget>[
+          PopupMenuButton<String>(
+            onSelected: handleClick,
+            itemBuilder: (BuildContext context) {
+              return {'Logout', 'Temas'}.map((String choice) {
+                return PopupMenuItem<String>(
+                  value: choice,
+                  child: Text(choice),
+                );
+              }).toList();
+            },
+          ),
+        ],
       ),
       body: StreamBuilder(
         stream: FirebaseFirestore.instance.collection('tarefas').snapshots(),
@@ -570,7 +604,9 @@ class _TarefasPage extends State<TarefasPage> {
                                                             .doc(userId);
                                                     final userDoc =
                                                         await userRef.get();
-                                                    if (userDoc.exists && doc['pontos_subtraidos'] != true) {
+                                                    if (userDoc.exists &&
+                                                        doc['pontos_subtraidos'] !=
+                                                            true) {
                                                       final currentPoints =
                                                           userDoc
                                                               .data()?['points'] ??
