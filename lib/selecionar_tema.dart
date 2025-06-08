@@ -21,13 +21,32 @@ class Tema {
   }
 }
 
-class TemaSelectionScreen extends StatelessWidget {
+class TemaSelectionScreen extends StatefulWidget {
   final String userId;
 
   const TemaSelectionScreen({required this.userId, Key? key}) : super(key: key);
 
+  @override
+  _TemaSelectionScreenState createState() => _TemaSelectionScreenState();
+}
+
+class _TemaSelectionScreenState extends State<TemaSelectionScreen> {
+  late Future<List<Tema>> _temasFuture;
+  late Future<List<String>> _desbloqueadosFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _carregarDados();
+  }
+
+  void _carregarDados() {
+    _temasFuture = _getTemasDisponiveis();
+    _desbloqueadosFuture = _getTemasDesbloqueados();
+  }
+
   Future<List<String>> _getTemasDesbloqueados() async {
-    final doc = await FirebaseFirestore.instance.collection('users').doc(userId).get();
+    final doc = await FirebaseFirestore.instance.collection('users').doc(widget.userId).get();
     final list = doc.data()?['temasDesbloqueados'] ?? [];
     return List<String>.from(list);
   }
@@ -42,7 +61,7 @@ class TemaSelectionScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: Text('Selecione um Tema')),
       body: FutureBuilder(
-        future: Future.wait([_getTemasDisponiveis(), _getTemasDesbloqueados()]),
+        future: Future.wait([_temasFuture, _desbloqueadosFuture]),
         builder: (context, AsyncSnapshot<List<dynamic>> snapshot) {
           if (!snapshot.hasData) return Center(child: CircularProgressIndicator());
 
@@ -53,7 +72,7 @@ class TemaSelectionScreen extends StatelessWidget {
             itemCount: temas.length,
             itemBuilder: (context, index) {
               final tema = temas[index];
-              final desbloqueado = desbloqueados.contains(tema.id);
+              final desbloqueado = desbloqueados.contains(tema.temaId);
 
               return Card(
                 color: tema.cor.withOpacity(0.2),
@@ -64,7 +83,58 @@ class TemaSelectionScreen extends StatelessWidget {
                       ? null
                       : Icon(Icons.lock, color: Colors.amber),
                   onTap: () {
-                    // funcionalidade virá depois
+                    if (!desbloqueado) {
+                      showDialog(
+                        context: context,
+                        builder: (context) {
+                          return AlertDialog(
+                            title: Text("Tema bloqueado"),
+                            content: Text(
+                              "Este tema está bloqueado. Deseja desbloqueá-lo por ${tema.pontos} pontos?",
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.of(context).pop(),
+                                child: Text("Cancelar"),
+                              ),
+                              TextButton(
+                                onPressed: () async {
+                                  Navigator.of(context).pop();
+
+                                  final userRef = FirebaseFirestore.instance.collection('users').doc(widget.userId);
+                                  final userDoc = await userRef.get();
+                                  final pontos = userDoc.data()?['points'] ?? 0;
+
+                                  if (pontos >= tema.pontos) {
+                                    await userRef.update({
+                                      'points': FieldValue.increment(-tema.pontos),
+                                      'temasDesbloqueados': FieldValue.arrayUnion([tema.temaId]),
+                                    });
+
+                                    setState(() {
+                                      _carregarDados();
+                                    });
+
+                                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(content: Text('Tema "${tema.nome}" desbloqueado!')),
+                                      );
+                                    });
+                                  } else {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text('Você não tem pontos suficientes.')),
+                                    );
+                                  }
+                                },
+                                child: Text("Desbloquear"),
+                              ),
+                            ],
+                          );
+                        },
+                      );
+                    } else {
+                      // futura lógica para aplicar o tema desbloqueado
+                    }
                   },
                 ),
               );
