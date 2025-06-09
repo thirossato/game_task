@@ -16,6 +16,19 @@ ThemeData getThemeDataFromId(String temaId) {
         ),
       );
 
+    case 'purple_rain':
+      return ThemeData(
+        primarySwatch: Colors.purple,
+        scaffoldBackgroundColor: Colors.deepPurple.shade50,
+        appBarTheme: AppBarTheme(
+          backgroundColor: Colors.deepPurple,
+          foregroundColor: Colors.black,
+        ),
+        floatingActionButtonTheme: FloatingActionButtonThemeData(
+          backgroundColor: Colors.deepPurple,
+          foregroundColor: Colors.white,
+        ),
+      );
     case 'sunset_orange':
       return ThemeData(
         primarySwatch: Colors.deepOrange,

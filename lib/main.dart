@@ -32,6 +32,7 @@ class MyApp extends StatelessWidget {
           title: "Game task",
           theme: theme,
           home: TarefasPage(),
+          debugShowCheckedModeBanner: false,
         );
       },
     );

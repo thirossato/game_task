@@ -512,130 +512,157 @@ class _TarefasPage extends State<TarefasPage> {
                                         : TextDecoration.none,
                               ),
                             ),
-                            subtitle: Row(
+                            subtitle: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Chip(
-                                  label: Text(
-                                    doc['Status'],
-                                    style: TextStyle(color: Colors.white),
-                                  ),
-                                  backgroundColor: _corStatus(doc['Status']),
+                                Row(
+                                  children: [
+                                    Chip(
+                                      label: Text(
+                                        doc['Status'],
+                                        style: TextStyle(color: Colors.white),
+                                      ),
+                                      backgroundColor: _corStatus(
+                                        doc['Status'],
+                                      ),
+                                    ),
+                                    SizedBox(width: 8),
+                                    _buildPrioridadeChip(doc['Prioridade']),
+                                  ],
                                 ),
-                                SizedBox(width: 8),
-                                _buildPrioridadeChip(doc['Prioridade']),
-                              ],
-                            ),
-                            trailing: Wrap(
-                              spacing: 4,
-                              children: [
-                                if (!concluida) ...[
-                                  IconButton(
-                                    icon: Icon(
-                                      Icons.play_arrow,
-                                      color: Colors.green,
-                                    ),
-                                    tooltip: 'Em progresso',
-                                    onPressed: () {
-                                      FirebaseFirestore.instance
-                                          .collection('tarefas')
-                                          .doc(doc.id)
-                                          .update({'Status': 'em progresso'});
-                                    },
-                                  ),
-                                  IconButton(
-                                    icon: Icon(
-                                      Icons.pause,
-                                      color: Colors.orange,
-                                    ),
-                                    tooltip: 'Paralisada',
-                                    onPressed: () {
-                                      FirebaseFirestore.instance
-                                          .collection('tarefas')
-                                          .doc(doc.id)
-                                          .update({'Status': 'paralisada'});
-                                    },
-                                  ),
-                                  IconButton(
-                                    icon: Icon(
-                                      Icons.check,
-                                      color: Colors.blueAccent,
-                                    ),
-                                    tooltip: 'Concluir',
-                                    onPressed: () {
-                                      showDialog(
-                                        context: context,
-                                        builder:
-                                            (ctx) => AlertDialog(
-                                              title: Text("Concluir Tarefa"),
-                                              content: Text(
-                                                "Tem certeza que deseja marcar esta tarefa como concluída?",
-                                              ),
-                                              actions: [
-                                                TextButton(
-                                                  onPressed:
-                                                      () => Navigator.pop(ctx),
-                                                  child: Text("Cancelar"),
-                                                ),
-                                                TextButton(
-                                                  onPressed: () async {
-                                                    FirebaseFirestore.instance
-                                                        .collection('tarefas')
-                                                        .doc(doc.id)
-                                                        .update({
-                                                          'Status': 'concluída',
-                                                        });
-
-                                                    final userRef =
+                                SizedBox(height: 8),
+                                Wrap(
+                                  spacing: 4,
+                                  children: [
+                                    if (!concluida) ...[
+                                      IconButton(
+                                        icon: Icon(
+                                          Icons.play_arrow,
+                                          color: Colors.green,
+                                        ),
+                                        tooltip: 'Em progresso',
+                                        onPressed: () {
+                                          FirebaseFirestore.instance
+                                              .collection('tarefas')
+                                              .doc(doc.id)
+                                              .update({
+                                                'Status': 'em progresso',
+                                              });
+                                        },
+                                      ),
+                                      IconButton(
+                                        icon: Icon(
+                                          Icons.pause,
+                                          color: Colors.orange,
+                                        ),
+                                        tooltip: 'Paralisada',
+                                        onPressed: () {
+                                          FirebaseFirestore.instance
+                                              .collection('tarefas')
+                                              .doc(doc.id)
+                                              .update({'Status': 'paralisada'});
+                                        },
+                                      ),
+                                      IconButton(
+                                        icon: Icon(
+                                          Icons.check,
+                                          color: Colors.blueAccent,
+                                        ),
+                                        tooltip: 'Concluir',
+                                        onPressed: () {
+                                          showDialog(
+                                            context: context,
+                                            builder:
+                                                (ctx) => AlertDialog(
+                                                  title: Text(
+                                                    "Concluir Tarefa",
+                                                  ),
+                                                  content: Text(
+                                                    "Tem certeza que deseja marcar esta tarefa como concluída?",
+                                                  ),
+                                                  actions: [
+                                                    TextButton(
+                                                      onPressed:
+                                                          () => Navigator.pop(
+                                                            ctx,
+                                                          ),
+                                                      child: Text("Cancelar"),
+                                                    ),
+                                                    TextButton(
+                                                      onPressed: () async {
                                                         FirebaseFirestore
                                                             .instance
-                                                            .collection('users')
-                                                            .doc(userId);
-                                                    final userDoc =
-                                                        await userRef.get();
-                                                    if (userDoc.exists &&
-                                                        doc['pontos_subtraidos'] !=
-                                                            true) {
-                                                      final currentPoints =
-                                                          userDoc
-                                                              .data()?['points'] ??
-                                                          0;
-                                                      await userRef.update({
-                                                        'points':
-                                                            currentPoints + 10,
-                                                      });
-                                                    }
+                                                            .collection(
+                                                              'tarefas',
+                                                            )
+                                                            .doc(doc.id)
+                                                            .update({
+                                                              'Status':
+                                                                  'concluída',
+                                                            });
 
-                                                    Navigator.pop(ctx);
-                                                  },
-                                                  child: Text("Sim"),
+                                                        final userRef =
+                                                            FirebaseFirestore
+                                                                .instance
+                                                                .collection(
+                                                                  'users',
+                                                                )
+                                                                .doc(userId);
+                                                        final userDoc =
+                                                            await userRef.get();
+                                                        if (userDoc.exists &&
+                                                            doc['pontos_subtraidos'] !=
+                                                                true) {
+                                                          final currentPoints =
+                                                              userDoc
+                                                                  .data()?['points'] ??
+                                                              0;
+                                                          await userRef.update({
+                                                            'points':
+                                                                currentPoints +
+                                                                10,
+                                                          });
+                                                        }
+
+                                                        Navigator.pop(ctx);
+                                                      },
+                                                      child: Text("Sim"),
+                                                    ),
+                                                  ],
                                                 ),
-                                              ],
-                                            ),
-                                      );
-                                    },
-                                  ),
-                                ],
-                                IconButton(
-                                  icon: Icon(Icons.edit, color: Colors.blue),
-                                  tooltip:
-                                      doc['Status'] == 'concluída'
-                                          ? 'Tarefa concluída (bloqueada)'
-                                          : 'Editar',
-                                  onPressed:
-                                      doc['Status'] == 'concluída'
-                                          ? null
-                                          : () => _editarTarefa(
-                                            context,
-                                            doc.id,
-                                            doc['Titulo'],
-                                            doc['Prioridade'],
-                                            doc['Data_vencimento'],
-                                          ),
-                                ),
-                                IconButton(
-                                  icon: Icon(Icons.delete, color: Colors.red),
-                                  tooltip: 'Deletar',
-                                  onPressed: () => _deletarTarefa(doc.id),
+                                          );
+                                        },
+                                      ),
+                                    ],
+                                    IconButton(
+                                      icon: Icon(
+                                        Icons.edit,
+                                        color: Colors.blue,
+                                      ),
+                                      tooltip:
+                                          doc['Status'] == 'concluída'
+                                              ? 'Tarefa concluída (bloqueada)'
+                                              : 'Editar',
+                                      onPressed:
+                                          doc['Status'] == 'concluída'
+                                              ? null
+                                              : () => _editarTarefa(
+                                                context,
+                                                doc.id,
+                                                doc['Titulo'],
+                                                doc['Prioridade'],
+                                                doc['Data_vencimento'],
+                                              ),
+                                    ),
+                                    IconButton(
+                                      icon: Icon(
+                                        Icons.delete,
+                                        color: Colors.red,
+                                      ),
+                                      tooltip: 'Deletar',
+                                      onPressed: () => _deletarTarefa(doc.id),
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
